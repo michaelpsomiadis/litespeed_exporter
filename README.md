@@ -35,5 +35,5 @@ make build
 ```
 
 ## Compatibility
- - Go 1.15+
+ - Go 1.19+
  - LSWS 6.0 | 5.4 | 5.3

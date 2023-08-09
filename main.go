@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 
+	kingpin "github.com/alecthomas/kingpin/v2"
 	"github.com/go-kit/kit/log/level"
 	"github.com/hostinger/litespeed_exporter/collector"
 	"github.com/prometheus/client_golang/prometheus"
@@ -13,7 +14,7 @@ import (
 	"github.com/prometheus/common/promlog"
 	"github.com/prometheus/common/promlog/flag"
 	"github.com/prometheus/common/version"
-	"gopkg.in/alecthomas/kingpin.v2"
+	"github.com/prometheus/exporter-toolkit/web"
 )
 
 var (
@@ -31,6 +32,7 @@ func main() {
 
 		metricsPath              = kingpin.Flag("web.telemetry-path", "Path under which to expose metrics.").Default("/metrics").String()
 		listenAddress            = kingpin.Flag("web.listen-address", "Address to listen on for web interface and telemetry.").Default(":9777").String()
+		configFile               = kingpin.Flag("web.config.file", "Path to config yaml file that can enable TLS or authentication.").Default("").String()
 		litespeedScrapePattern   = kingpin.Flag("litespeed.scrape-pattern", "Pattern of files to scrape LiteSpeed metrics from.").Default("/tmp/lshttpd/.rtreport*").String()
 		litespeedExcludedMetrics = kingpin.Flag("litespeed.exclude-metrics", "Comma-separated list of metrics to exclude. Available options: ["+collector.LitespeedMetrics.String()+"]").Default("").String()
 		litespeedReqRatesByHost  = kingpin.Flag("litespeed.req-rates-by-host", "Export Request Rates by host.").Bool()
@@ -77,8 +79,17 @@ func main() {
 		`))
 	})
 
-	if err := http.ListenAndServe(*listenAddress, nil); err != nil {
-		level.Error(logger).Log("msg", "Could not start HTTP server", "err", err)
+	server := &http.Server{Addr: *listenAddress}
+
+	webSystemdSocket := false
+
+	flags := web.FlagConfig{
+		WebListenAddresses: &[]string{*listenAddress},
+		WebSystemdSocket:   &webSystemdSocket,
+		WebConfigFile:      configFile,
+	}
+	if err := web.ListenAndServe(server, &flags, logger); err != nil {
+		level.Error(logger).Log("err", err)
 		os.Exit(1)
 	}
 }
